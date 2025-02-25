@@ -1,0 +1,239 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+}
+
+.form-container {
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin: 0 auto;
+    max-width: 600px;
+    border-radius: 8px;
+}
+.tab-content {
+    max-height: 65vh; /* Ограничиваем высоту до 60% от экрана */
+    overflow-y: auto; /* Включаем вертикальный скролл при переполнении */
+    border: 1px solid #ddd; /* Опционально, для наглядности */
+    padding: 10px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 16px;
+    background-color: #f9f9f9;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-group button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%;
+}
+
+.form-group button:hover {
+    background-color: #45a049;
+}
+
+.logout-btn {
+    padding: 10px 15px;
+    background-color:rgb(206, 7, 7);
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    text-decoration: none;
+    display: block;
+    width: 100px;
+    margin: 20px auto;
+    text-align: center;
+}
+
+.logout-btn:hover {
+    background-color:rgb(255, 0, 34);
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    margin: 0 5px;
+}
+
+.tab-button:hover {
+    background-color: #0056b3;
+}
+
+.tab-button.active {
+    background-color: #28a745;
+}
+
+table {
+    width: 100%;
+    margin-top: 30px;
+    border-collapse: collapse;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+table th, table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+table th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tr:hover {
+    background-color: #f1f1f1;
+}
+
+.ticket-status {
+    font-weight: bold;
+}
+
+.status-open {
+    color: #28a745;
+}
+
+.status-closed {
+    color: #dc3545;
+}
+
+.create-ticket-heading {
+    text-align: center;
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 20px;
+}
+.submit-ticket-btn {
+width: 10%; /* Ширина кнопки */
+padding: 12px; /* Увеличиваем отступ */
+font-size: 16px; /* Увеличиваем шрифт */
+background-color: #007bff;
+color: white;
+border: none;
+border-radius: 5px;
+cursor: pointer;
+margin-top: 0px; /* Поднимаем кнопку ближе к вкладкам */
+}
+
+.submit-ticket-btn:hover {
+background-color: #0056b3;
+}
+.sendticket-div {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+.ticket-details {
+    display: none;
+    background: #f9f9f9;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+}
+.toggle-details-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+.toggle-details-btn:hover {
+    background-color: #0056b3;
+}
+
+.ticket-details-box {
+background: #f9f9f9;
+border-left: 5px solid #007bff;
+padding: 15px;
+border-radius: 5px;
+font-size: 14px;
+color: #333;
+margin-top: 10px;
+word-wrap: break-word;
+overflow-wrap: break-word;
+white-space: normal;
+max-width: 100%;
+}
+
+.ticket-details-box p {
+margin: 5px 0;
+padding: 3px 0;
+border-bottom: 1px solid #ddd;
+word-break: break-word;
+white-space: normal;
+max-width: 50%;
+}
+
+.ticket-details-box p:last-child {
+border-bottom: none;
+}
+
+.status-open {
+color: green;
+font-weight: bold;
+}
+
+.status-closed {
+color: red;
+font-weight: bold;
+}
+.error-message {
+color: red;
+font-size: 12px;
+display: block;
+margin-top: 5px;
+}
+
+.input-error {
+border: 1px solid red;
+background-color: #ffe6e6;
+}
