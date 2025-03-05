@@ -6,3 +6,4 @@ session_destroy(); // Уничтожаем саму сессию
 // Перенаправляем пользователя на страницу входа
 header('Location: login/index.php');
 exit;
+?>

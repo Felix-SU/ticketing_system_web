@@ -1,43 +1,61 @@
 <?php
 session_start();
-// Проверка, что пользователь авторизован и является администратором
+include '../db.php';  // Подключаем базу данных
+// Проверяем авторизацию и роль
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'root')) {
     header('Location: ../login/index.php');
     exit;
 }
-include '../db.php';  // Подключаем базу данных
-// Получаем ID текущего администратора
 $admin_id = $_SESSION['user_id'];
+
 // Обработка закрытия тикета
 if (isset($_GET['close_ticket_id'])) {
     $ticket_id = $_GET['close_ticket_id'];
-    // Обновление статуса тикета на 'closed'
-    $sql = "UPDATE tickets SET status = 'closed' WHERE id = ?";
+    $sql = "UPDATE tickets SET status = 'closed', updated_at = NOW() WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$ticket_id]);
-    header('Location: index.php'); // Перенаправляем обратно на страницу с тикетами
+    header('Location: index.php');
     exit;
 }
-// Получаем открытые тикеты, назначенные текущему администратору
+// Подсчет общего количества тикетов
+$sql_count_open = "SELECT COUNT(*) FROM tickets WHERE assigned_admin = ? AND status = 'open'";
+$stmt_count_open = $pdo->prepare($sql_count_open);
+$stmt_count_open->execute([$admin_id]);
+$total_open_tickets = $stmt_count_open->fetchColumn();
+$sql_count_closed = "SELECT COUNT(*) FROM tickets WHERE assigned_admin = ? AND status = 'closed'";
+$stmt_count_closed = $pdo->prepare($sql_count_closed);
+$stmt_count_closed->execute([$admin_id]);
+$total_closed_tickets = $stmt_count_closed->fetchColumn();
+// Пагинация для тикетов
+$tickets_per_page = 20;
+$open_total_pages = ceil($total_open_tickets / $tickets_per_page);
+$closed_total_pages = ceil($total_closed_tickets / $tickets_per_page);
+$open_page = isset($_GET['open_page']) ? (int)$_GET['open_page'] : 1;
+$closed_page = isset($_GET['closed_page']) ? (int)$_GET['closed_page'] : 1;
+$open_offset = ($open_page - 1) * $tickets_per_page;
+$closed_offset = ($closed_page - 1) * $tickets_per_page;
+// Запрос на получение открытых тикетов
 $sql_open = "SELECT t.id, t.title, t.description, t.status, t.created_at, t.updated_at, u.username, u.position
-            FROM tickets t 
-            JOIN users u ON t.user_id = u.id
-            WHERE t.status = 'open' AND t.assigned_admin = ?
-            ORDER BY t.created_at DESC";
+             FROM tickets t 
+             JOIN users u ON t.user_id = u.id
+             WHERE t.status = 'open' AND t.assigned_admin = ?
+             ORDER BY t.created_at DESC
+             LIMIT $tickets_per_page OFFSET $open_offset";
 $stmt_open = $pdo->prepare($sql_open);
 $stmt_open->execute([$admin_id]);
 $open_tickets = $stmt_open->fetchAll();
-// Получаем закрытые тикеты, назначенные текущему администратору
+// Запрос на получение закрытых тикетов
 $sql_closed = "SELECT t.id, t.title, t.description, t.status, t.created_at, t.updated_at, u.username, u.position
-              FROM tickets t 
-              JOIN users u ON t.user_id = u.id
-              WHERE t.status = 'closed' AND t.assigned_admin = ?
-              ORDER BY t.created_at DESC";
+               FROM tickets t 
+               JOIN users u ON t.user_id = u.id
+               WHERE t.status = 'closed' AND t.assigned_admin = ?
+               ORDER BY t.updated_at DESC
+               LIMIT $tickets_per_page OFFSET $closed_offset";
 $stmt_closed = $pdo->prepare($sql_closed);
 $stmt_closed->execute([$admin_id]);
 $closed_tickets = $stmt_closed->fetchAll();
-// Получаем всех пользователей для изменения их ролей
-$sql_users = "SELECT id, username, role,position FROM users";
+// Получаем список всех пользователей
+$sql_users = "SELECT id, username, role, position FROM users";
 $stmt_users = $pdo->prepare($sql_users);
 $stmt_users->execute();
 $users = $stmt_users->fetchAll();
@@ -47,7 +65,7 @@ $users = $stmt_users->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление тикетами</title>
+    <title>Управление заявками</title>
     <link rel="stylesheet" href="css/styles.css">
 
 </head>
@@ -56,10 +74,9 @@ $users = $stmt_users->fetchAll();
 <div class="tabs">
     <button class="tab-button active" id="open-tab-btn">Открытые заявки</button>
     <button class="tab-button" id="closed-tab-btn">Закрытые заявки</button>
-    <?php if ( $_SESSION['role'] == 'root'): ?>
-        <button class="tab-button" id="roles-tab-btn">Управление пользователями</button>
-        <button class="tab-button" id="register-tab-btn">Регистрация пользователей</button>
-    <?php endif; ?>
+    
+        <button class="tab-button"<?php if ( $_SESSION['role'] !== 'root'): ?> style="display:none;"  <?php endif; ?>id="roles-tab-btn">Управление пользователями</button>
+        <button class="tab-button" id="register-tab-btn" <?php if ( $_SESSION['role'] !== 'root'): ?> style="display:none;"  <?php endif; ?>id="roles-tab-btn">Регистрация пользователей</button>
 </div>
 <!-- Таблица с открытыми тикетами -->
 <h4 id="text_update_ticket"style="color:green;display:none; ">Появились новые заявки</h3>
@@ -92,21 +109,20 @@ $users = $stmt_users->fetchAll();
                     <button class="toggle-details-btn" onclick="toggleDetails(<?= $ticket['id'] ?>)">Показать детали</button>
                     </td>
                     <td>
-                        <!-- Кнопка закрытия тикета -->
-                        <a href="?close_ticket_id=<?= $ticket['id'] ?>" class="close-ticket-btn">Закрыть заявку</a>
+    <!-- Кнопка закрытия тикета -->
+                        <button class="close-ticket-btn" data-ticket-id="<?= $ticket['id'] ?>">Закрыть заявку</button>
                     </td>
-                     <tr id="details-<?= $ticket['id'] ?>" class="ticket-details">
+                    <tr id="details-<?= $ticket['id'] ?>" class="ticket-details">
                     <td colspan="10">
                         <div class="ticket-details-box">
                             <p><strong>ID:</strong> <?= htmlspecialchars($ticket['id']) ?></p>
                             <p><strong>Имя отправителя:</strong> <?= htmlspecialchars($ticket['position']) ?></p>
                             <p><strong>Заголовок:</strong> <?= htmlspecialchars($ticket['title']) ?></p>
                             <p><strong>Описание:</strong> <?= htmlspecialchars($ticket['description']) ?></p>
-                            
+                            <p><strong>Дата создания:</strong> <?= $ticket['created_at'] ?></p>
                             <p><strong>Статус:</strong> <span class="<?= $ticket['status'] === 'open' ? 'status-open' : 'status-closed' ?>">
                             <?= htmlspecialchars($ticket['status']) ?>
                             </span></p>
-                            <p><strong>Дата создания:</strong> <?= $ticket['created_at'] ?></p>
                         </div>
                     </td>
                     </tr>  
@@ -114,10 +130,17 @@ $users = $stmt_users->fetchAll();
             <?php endforeach; ?>
         </tbody>
     </table>
+    <?php if (isset($open_total_pages) && $open_total_pages > 1): ?>
+    <div class="pagination">
+    <?php for ($i = 1; $i <= $open_total_pages; $i++): ?>
+            <span class="page-link <?= $i == $open_page ? 'active' : '' ?>" data-page="<?= $i ?>"><?= $i ?></span>
+        <?php endfor; ?>
+    </div>
+<?php endif; ?>
 </div>
 <!-- Таблица с закрытыми тикетами -->
 <div id="closed-tickets" class="tab-content" style="display: none;">
-<h3 style="text-align: center;">Закрытые заявки</h3>
+<h3 style="text-align: center;">Закрытые заявки</h3> 
     <table>
         <thead>
             <tr>
@@ -151,16 +174,27 @@ $users = $stmt_users->fetchAll();
                         <p><strong>Заголовок:</strong> <?= htmlspecialchars($ticket['title']) ?></p>
                         <p><strong>Описание:</strong> <?= htmlspecialchars($ticket['description']) ?></p>
                         <p><strong>Имя отправителя:</strong> <?= htmlspecialchars($ticket['position']) ?></p>
+                        <p><strong>Дата создания:</strong> <?= $ticket['created_at'] ?></p>
                         <p><strong>Статус:</strong> <span class="<?= $ticket['status'] === 'open' ? 'status-open' : 'status-closed' ?>">
                         <?= htmlspecialchars($ticket['status']) ?>
                         </span></p>
-                        <p><strong>Дата создания:</strong> <?= $ticket['created_at'] ?></p>
                     </div>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+    <?php if (isset($closed_total_pages) && $closed_total_pages > 1): ?>
+    <div class="pagination">
+        <?php for ($i = 1; $i <= $closed_total_pages; $i++): ?>
+            <span class="page-link <?= $i == $closed_page ? 'active' : '' ?>" 
+                data-page="<?= $i ?>" 
+                data-status="closed">
+                <?= $i ?>
+            </span>
+        <?php endfor; ?>
+    </div>
+<?php endif; ?>
 </div>
 <div id="register-form-container" style="display: none; max-width: 400px; margin: 0 auto;">
     <h2>Регистрация</h2>

@@ -1,11 +1,251 @@
 document.addEventListener("DOMContentLoaded", function () {
+    function renderPagination(totalPages, currentPage, status) {
+        if (totalPages <= 1) return "";
+        let html = '<div class="pagination">';
+        // Первая страница
+        html += `<span class="page-link ${currentPage == 1 ? 'active' : ''}" data-page="1" data-status="${status}">1</span>`;
+        // Многоточие, если текущая страница далеко
+        if (totalPages > 5 && currentPage > 3) {
+            html += '<span class="page-link disabled">...</span>';
+        }
+        // Отображаем страницу перед текущей, текущую и следующую
+        let start = Math.max(2, Math.min(currentPage - 1, totalPages - 3));
+        let end = Math.min(totalPages - 1, Math.max(currentPage + 1, 4));
+        for (let i = start; i <= end; i++) {
+            html += `<span class="page-link ${i == currentPage ? 'active' : ''}" data-page="${i}" data-status="${status}">${i}</span>`;
+        }
+        // Многоточие, если текущая страница далеко от последней
+        if (totalPages > 5 && currentPage < totalPages - 2) {
+            html += '<span class="page-link disabled">...</span>';
+        }
+        // Последняя страница
+        if (totalPages > 1) {
+            html += `<span class="page-link ${currentPage == totalPages ? 'active' : ''}" data-page="${totalPages}" data-status="${status}">${totalPages}</span>`;
+        }
+        html += '</div>';
+        return html;
+    }
+    // Функция обновления активной страницы
+    function highlightActivePage() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const openPage = Number(urlParams.get("open_page")) || 1;
+        const closedPage = Number(urlParams.get("closed_page")) || 1;
+    
+        $(".page-link").each(function () {
+            const page = Number($(this).data("page"));
+            const status = $(this).data("status") || "open";
+    
+            if ((status === "open" && page === openPage) || (status === "closed" && page === closedPage)) {
+                $(this).addClass("active");
+            } else {
+                $(this).removeClass("active");
+            }
+        });
+    }
+    // Вызов при загрузке страницы
+    highlightActivePage();
+    // Обработчик клика по страницам
+    $(document).on("click", ".page-link", function (e) {
+        e.preventDefault();
+        if ($(this).hasClass("disabled")) return; // Игнорируем многоточие
+        const page = $(this).data("page");
+        const status = $(this).data("status") || "open";
+        // Определяем нужную таблицу
+        const tableSelector = status === "open" ? "#open-tickets tbody" : "#closed-tickets tbody";
+        $(tableSelector).fadeOut(200, function () {
+            $(this).empty();
+            // AJAX-запрос
+            $.ajax({
+                url: "/admin_dashboard/php/loadtickets.php",
+                type: "GET",
+                data: { page: page, status: status },
+                dataType: "json",
+                success: function (tickets) {
+                    if (Array.isArray(tickets)) {
+                        let newRows = "";
+                        tickets.forEach(ticket => {
+                            newRows += `
+                                <tr id="ticket-${ticket.id}">
+                                    <td>${ticket.id}</td>
+                                      <td>${ticket.position ? (ticket.position.length > 10 ? ticket.position.substring(0, 10) + '...' : ticket.position) : '—'}</td>
+                                    <td>${ticket.title.length > 15 ? ticket.title.substring(0, 15) + '...' : ticket.title}</td>
+                                    <td>${ticket.description.length > 10 ? ticket.description.substring(0, 10) + '...' : ticket.description}</td>
+                                    <td>${ticket.created_at}</td>
+                                    ${status === "closed" ? `<td>${ticket.updated_at || '—'}</td>` : ""}
+                                    <td class="ticket-status ${ticket.status === 'open' ? 'status-open' : 'status-closed'}">${ticket.status}</td>
+                                    <td><button class="toggle-details-btn" onclick="toggleDetails(${ticket.id})">Показать детали</button></td>
+                                      ${status !== "closed" ? `   <td><button class="close-ticket-btn" data-ticket-id="${ticket.id}">Закрыть заявку</button></td>` : ""}
+                                </tr>
+                                <tr id="details-${ticket.id}" class="ticket-details" style="display: none;">
+                                    <td colspan="${ticket.status === "closed" ? 9 : 8}">
+                                        <div class="ticket-details-box">
+                                            <p><strong>ID:</strong> ${ticket.id}</p>
+                                            <p><strong>Заголовок:</strong> ${ticket.title}</p>
+                                            <p><strong>Описание:</strong> ${ticket.description}</p>
+                                  
+                                            <p><strong>Имя отправителя:</strong> ${ticket.position || "—"}</p>
+                                            <p><strong>Дата создания:</strong> ${ticket.created_at}</p>
+                                            ${ticket.status === "closed" ? `<p><strong>Дата закрытия:</strong> ${ticket.updated_at || "—"}</p>` : ""}
+                                            <p><strong>Статус:</strong> <span class="${ticket.status === "open" ? "status-open" : "status-closed"}">${ticket.status}</span></p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        $(tableSelector).html(newRows).fadeIn(300);
+                        // Обновляем пагинацию
+                        const paginationHtml = renderPagination(20, page, status); // Тут укажи реальное totalPages
+                        $(`.pagination[data-status="${status}"]`).html(paginationHtml);
+                        // Обновляем URL без перезагрузки страницы
+                        const newUrl = new URL(window.location);
+                        newUrl.searchParams.set(status + "_page", page);
+                        window.history.pushState({}, "", newUrl);
+                        highlightActivePage();
+                    } else {
+                        console.error("❌ Ошибка: некорректный формат данных", tickets);
+                    }
+                },
+                error: function () {
+                    alert("Ошибка загрузки тикетов");
+                }
+            });
+        });
+    });
+    document.getElementById("register-form").addEventListener("submit", function(event) {
+        event.preventDefault(); // Остановить стандартную отправку формы
+        let formData = new FormData(this);
+        fetch("/admin_dashboard/php/register.php", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            let messageEl = document.getElementById("register-message");
+            messageEl.textContent = data.message;
+            messageEl.style.color = data.status === "success" ? "green" : "red";
+            // Скрыть сообщение через 3 секунды
+            setTimeout(() => {
+                messageEl.textContent = "";
+            }, 3000);
+        })
+        .catch(error => console.error("Ошибка:", error));
+    });
+    document.querySelector("#open-tickets tbody").addEventListener("click", function (event) {
+        if (event.target.classList.contains("close-ticket-btn")) {
+            const button = event.target;
+            const ticketId = button.getAttribute("data-ticket-id");
+            const ticketRow = document.getElementById(`ticket-${ticketId}`);
+            if (!ticketRow) {
+                console.error("❌ Ошибка: строка заявки не найдена", ticketId);
+                return;
+            }
+            // Блокируем кнопку, чтобы избежать двойного нажатия
+            button.disabled = true;
+            button.innerText = "Закрывается...";
+            // Отправляем AJAX-запрос
+            fetch(`/admin_dashboard/php/close_ticket.php?id=${ticketId}&status=closed`, {
+                method: "GET"
+            })
+            .then(response => response.text())  // Оставляем text(), так как сервер не возвращает JSON
+            .then(responseText => {
+                if (responseText.includes("Ошибка")) {
+                    alert("Ошибка: " + responseText);
+                    button.disabled = false;
+                    button.innerText = "Закрыть заявку";
+                } else {
+                    // Добавляем заявку в таблицу закрытых
+                    addClosedTicketToTable({
+                        id: ticketId,
+                        position: ticketRow.children[1].textContent,
+                        title: ticketRow.children[2].textContent,
+                        description: ticketRow.children[3].textContent,
+                        created_at: ticketRow.children[4].textContent,
+                        updated_at: new Date().toLocaleString(),
+                        status: "closed"
+                    });
+                    // Анимация удаления из открытых заявок
+                    ticketRow.classList.add("slide-out-left");
+                    setTimeout(() => ticketRow.remove(), 500);
+                }
+            })
+            .catch(error => {
+                console.error("Ошибка запроса:", error);
+                alert("Ошибка при закрытии заявки.");
+                button.disabled = false;
+                button.innerText = "Закрыть заявку";
+            });
+        }
+    });
+    // Функция добавления закрытой заявки в таблицу закрытых
+    function addClosedTicketToTable(ticket) {
+        if (!ticket || !ticket.id) {
+            console.error("❌ Ошибка: некорректные данные тикета", ticket);
+            return;
+        }
+        showUpdateText(); // Показываем "Заявки обновлены"
+        let closedTableBody = document.querySelector("#closed-tickets tbody");
+        if (!closedTableBody) {
+            console.error("❌ Ошибка: таблица закрытых тикетов не найдена.");
+            return;
+        }
+        let title = ticket.title || "Без названия";
+        let description = ticket.description || "Нет описания";
+        let position = ticket.position || "Не указана";
+        let createdAt = ticket.created_at || "Дата неизвестна";
+        let updatedAt = ticket.updated_at || "Дата закрытия неизвестна";
+        let statusClass = "status-closed";
+        // Проверяем, существует ли уже строка с таким ID в закрытых тикетах
+        let existingRow = document.querySelector(`#ticket-${ticket.id}`);
+        if (existingRow) {
+            console.log(`✅ Тикет с ID ${ticket.id} уже существует в таблице закрытых, обновляем данные.`);
+            // Можно обновить данные в существующей строке, если это необходимо.
+            return;
+        }
+        // Основная строка закрытого тикета
+        let row = document.createElement("tr");
+        row.id = `ticket-${ticket.id}`;
+        row.innerHTML = `
+            <td>${ticket.id}</td>
+            <td>${position.length > 30 ? position.substring(0, 30) + "..." : position}</td>
+            <td>${title.length > 15 ? title.substring(0, 15) + "..." : title}</td>
+            <td>${description.length > 20 ? description.substring(0, 20) + "..." : description}</td>
+            <td>${createdAt}</td>
+            <td>${updatedAt}</td>
+            <td class="ticket-status ${statusClass}">${ticket.status}</td>
+            <td>
+                <button class="toggle-details-btn" onclick="toggleDetails(${ticket.id})">Показать детали</button>
+            </td>
+        `;
+        // Строка с деталями тикета
+        let detailsRow = document.createElement("tr");
+        detailsRow.id = `details-${ticket.id}`;
+        detailsRow.classList.add("ticket-details");
+        detailsRow.innerHTML = `
+            <td colspan="10">
+                <div class="ticket-details-box">
+                    <p><strong>ID:</strong> ${ticket.id}</p>
+                    <p><strong>Имя отправителя:</strong> ${position}</p>
+                    <p><strong>Заголовок:</strong> ${title}</p>
+                    <p><strong>Описание:</strong> ${description}</p>
+                    <p><strong>Дата создания:</strong> ${createdAt}</p>
+                    <p><strong>Дата закрытия:</strong> ${updatedAt}</p>
+                    <p><strong>Статус:</strong> <span class="${statusClass}">${ticket.status}</span></p>
+                </div>
+            </td>
+        `;
+        // Добавляем строки в таблицу закрытых заявок
+        closedTableBody.appendChild(row);
+        closedTableBody.appendChild(detailsRow);
+        // Добавление анимации появления
+        animateAppearance(row);
+        animateAppearance(detailsRow);
+    }
     let previousTickets = []; // Храним предыдущее состояние тикетов
     function animateAppearance(element) {
         if (!element) return;
         element.style.opacity = "0"; // Начальная прозрачность
         element.style.transform = "translateY(-10px)"; // Легкий подъем
         element.style.transition = "opacity 0.5s ease, transform 0.5s ease";
-    
         // Запускаем анимацию с небольшой задержкой
         setTimeout(() => {
             element.style.opacity = "1";
@@ -15,14 +255,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // Функция загрузки тикетов
     async function loadTickets() {
         try {
-            const response = await fetch(`/ticketing_system/admin_dashboard/php/check.php?nocache=${Date.now()}`);
+            const response = await fetch(`/admin_dashboard/php/check.php?nocache=${Date.now()}`);
             const data = await response.json();
-
             if (!Array.isArray(data)) {
                 console.error("❌ Ошибка: сервер вернул некорректные данные!", data);
                 return;
             }
-
+            // Сортируем тикеты по дате создания (новые сверху)
+        data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             // Если первый запуск — просто сохраняем тикеты
             if (previousTickets.length === 0) {
                 previousTickets = data;
@@ -52,7 +292,6 @@ document.addEventListener("DOMContentLoaded", function () {
         let textElement = document.getElementById("text_update_ticket");
         if (!textElement) return;
         textElement.style.display = "block"; // Показываем текст
-    
         setTimeout(() => {
             textElement.style.display = "none"; // Скрываем через 3 секунды
         }, 3000);
@@ -71,7 +310,6 @@ document.addEventListener("DOMContentLoaded", function () {
         let position = ticket.position || "Не указана";
         let createdAt = ticket.created_at || "Дата неизвестна";
         let statusClass = ticket.status === "open" ? "status-open" : "status-closed";
-    
         // Основная строка тикета
         let row = document.createElement("tr");
         row.id = `ticket-${ticket.id}`;
@@ -80,9 +318,8 @@ document.addEventListener("DOMContentLoaded", function () {
             <span class="ticket-id">${ticket.id}</span>
             <span class="star">*</span>
         </td>
-            
-            <td>${position.length > 10 ? position.substring(0, 10) + "..." : position}</td>
-            <td>${position.length > 10 ? position.substring(0, 10) + "..." : title}</td>
+            <td>${position.length > 30 ? position.substring(0, 30) + "..." : position}</td>
+            <td>${title.length > 15 ? title.substring(0, 15) + "..." : title}</td>
              <td>${description.length > 10 ? description.substring(0, 10) + "..." : description}</td>
             <td>${createdAt}</td>
             <td class="ticket-status ${statusClass}">${ticket.status}</td>
@@ -90,7 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 <button class="toggle-details-btn" onclick="toggleDetails(${ticket.id})">Показать детали</button>
             </td>
             <td>
-                <a href="?close_ticket_id=${ticket.id}" class="close-ticket-btn">Закрыть заявку</a>
+               <button class="close-ticket-btn" data-ticket-id="${ticket.id}">Закрыть заявку</button>
             </td>
         `;
         // Строка с деталями тикета
@@ -101,12 +338,12 @@ document.addEventListener("DOMContentLoaded", function () {
             <td colspan="10">
                 <div class="ticket-details-box">
                     <p><strong>ID:</strong> ${ticket.id}</p>
-                    
                     <p><strong>Имя отправителя:</strong> ${position}</p>
                     <p><strong>Заголовок:</strong> ${title}</p>
                     <p><strong>Описание:</strong> ${description}</p>
-                    <p><strong>Статус:</strong> <span class="${statusClass}">${ticket.status}</span></p>
                     <p><strong>Дата создания:</strong> ${createdAt}</p>
+                   
+                    <p><strong>Статус:</strong> <span class="${statusClass}">${ticket.status}</span></p>
                 </div>
             </td>
         `;
@@ -159,14 +396,16 @@ document.getElementById('password').addEventListener('input', function() {
 document.getElementById('login').addEventListener('input', function() {
     const loginField = document.getElementById('login');
     const errorMessage = document.getElementById('login_error');
-    // Удаление неподобающих символов
-    loginField.value = loginField.value.replace(/[^A-Za-z0-9]/g, '');
-    // Проверка на допустимые символы
-    if (!/^[A-Za-z0-9]+$/.test(loginField.value)) {
+
+    // Преобразуем заглавные буквы в строчные и убираем недопустимые символы
+    loginField.value = loginField.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Проверка на допустимые символы (по сути уже не нужна, но оставим)
+    if (!/^[a-z0-9]+$/.test(loginField.value)) {
         errorMessage.textContent = "Логин может содержать только латинские буквы и цифры.";
         errorMessage.style.display = 'block';
-        
-        // Ожидаем 2 секунды и скрываем сообщение
+
+        // Ожидание 2 секунды и скрытие сообщения
         setTimeout(() => {
             errorMessage.style.display = 'none';
         }, 2000);
@@ -175,40 +414,37 @@ document.getElementById('login').addEventListener('input', function() {
         errorMessage.style.display = 'none';
     }
 });
-$(document).ready(function() {
-    $("#register-form").on("submit", function(event) {
-        event.preventDefault(); // Останавливаем стандартное поведение формы
-        $.ajax({
-            type: "POST",
-            url: "/ticketing_system/admin_dashboard/php/register.php",
-            data: $(this).serialize(),
-            dataType: "json",
-            success: function(response) {
-                if (response.status === "success") {
-                    $("#register-message").css("color", "green").text(response.message);
-                    $("#register-form")[0].reset(); // Очищаем форму
-                } else {
-                    $("#register-message").css("color", "red").text(response.message);
-                }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-    console.error("Ошибка AJAX:", textStatus, errorThrown, jqXHR.responseText);
-    $("#register-message").css("color", "red").text("Ошибка при отправке запроса.");
-}
-        });
-    });
-});
 function toggleDetails(ticketId) {
-      let detailsRow = document.getElementById('details-' + ticketId);
-      let button = detailsRow.previousElementSibling.querySelector('.toggle-details-btn');
-      if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
-          detailsRow.style.display = 'table-row';
-          button.textContent = 'Скрыть детали';
-      } else {
-          detailsRow.style.display = 'none';
-          button.textContent = 'Показать детали';
-      }
-  }
+    let detailsRow = document.getElementById('details-' + ticketId);
+    let detailsBox = detailsRow.querySelector('.ticket-details-box');
+    let button = detailsRow.previousElementSibling.querySelector('.toggle-details-btn');
+
+    if (detailsRow.classList.contains('show')) {
+        detailsBox.style.maxHeight = detailsBox.scrollHeight + 'px'; // Фиксируем перед закрытием
+        setTimeout(() => {
+            detailsBox.style.maxHeight = '0';
+            detailsBox.style.opacity = '0';
+            detailsBox.style.transform = 'scaleY(0)';
+        }, 10);
+        setTimeout(() => {
+            detailsRow.style.display = 'none'; // Скрываем строку после анимации
+            detailsRow.classList.remove('show');
+        }, 300);
+        button.textContent = 'Показать детали';
+    } else {
+        detailsRow.style.display = 'table-row'; // Показываем строку сразу
+        detailsBox.style.maxHeight = '0'; // Сбрасываем перед анимацией
+
+        setTimeout(() => {
+            detailsRow.classList.add('show');
+            detailsBox.style.maxHeight = detailsBox.scrollHeight + 'px';
+            detailsBox.style.opacity = '1';
+            detailsBox.style.transform = 'scaleY(1)';
+        }, 10);
+
+        button.textContent = 'Скрыть детали';
+    }
+}
     // Переключение вкладок
     const openTabBtn = document.getElementById('open-tab-btn');
     const closedTabBtn = document.getElementById('closed-tab-btn');
@@ -264,11 +500,9 @@ function toggleDetails(ticketId) {
   document.querySelectorAll('.role-form').forEach(form => {
         form.addEventListener('submit', function(event) {
             event.preventDefault(); // Отменяем стандартную отправку формы
-
             const userId = this.getAttribute('data-user-id');
             const formData = new FormData(this);
-
-            fetch('/ticketing_system/admin_dashboard/php/change_role.php', {
+            fetch('/admin_dashboard/php/change_role.php', {
                 method: 'POST',
                 body: formData
             })
@@ -283,7 +517,6 @@ function toggleDetails(ticketId) {
                     messageElement.textContent = 'Произошла ошибка при изменении роли.';
                     messageElement.style.color = 'red';
                 }
-                
                 // Показываем сообщение на 2 секунды
                 messageElement.style.display = 'block';
                 setTimeout(() => {
@@ -299,11 +532,9 @@ function toggleDetails(ticketId) {
     document.querySelectorAll('.password-form').forEach(form => {
         form.addEventListener('submit', function(event) {
             event.preventDefault(); // Отменяем стандартную отправку формы
-
             const userId = this.getAttribute('data-user-id');
             const formData = new FormData(this);
-
-            fetch('/ticketing_system/admin_dashboard/php/change_password.php', {
+            fetch('/admin_dashboard/php/change_password.php', {
                 method: 'POST',
                 body: formData
             })
@@ -314,12 +545,10 @@ function toggleDetails(ticketId) {
                 if (data.success) {
                     messageElement.textContent = 'Пароль успешно изменен!';
                     messageElement.style.color = 'green';
-                    
                 } else {
                     messageElement.textContent = 'Произошла ошибка при изменении пароля.';
                     messageElement.style.color = 'red';
                 }
-
                 // Показываем сообщение на 2 секунды
                 messageElement.style.display = 'block';
                 setTimeout(() => {

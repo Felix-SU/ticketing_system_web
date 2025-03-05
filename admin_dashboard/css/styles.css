@@ -22,6 +22,19 @@ h2 {
     border-radius: 5px;
     margin: 0 5px;
 }
+@keyframes slideOutLeft {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}
+.slide-out-left {
+    animation: slideOutLeft 0.5s ease-out forwards;
+}
 .tab-button:hover {
     background-color: #0056b3;
 }
@@ -34,7 +47,6 @@ table {
     border-collapse: collapse;
     background-color: #fff;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    
 }
 table th, table td {
     padding: 12px;
@@ -107,10 +119,9 @@ table tr:hover {
     background-color: #218838;
 }
 .ticket-details {
-    display: none;
-    background: #f9f9f9;
-    padding: 10px;
-    border-top: 1px solid #ddd;
+    display: none; /* Изначально скрыто */
+    opacity: 1;
+    height: 0;
 }
 .toggle-details-btn {
     background-color: #007bff;
@@ -124,19 +135,18 @@ table tr:hover {
     background-color: #0056b3;
 }
 .ticket-details-box {
-    background: #f9f9f9;
-    border-left: 5px solid #007bff;
-    padding: 15px;
-    border-radius: 5px;
-    font-size: 14px;
-    color: #333;
-    margin-top: 10px;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    white-space: normal;
-    max-width: 100%;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, transform 0.3s ease-out;
 }
-
+.ticket-details.show .ticket-details-box {
+    max-height: 500px; /* Достаточно большое значение */
+    opacity: 1;
+    transform: scaleY(1);
+}
 .ticket-details-box p {
     margin: 5px 0;
     padding: 3px 0;
@@ -145,16 +155,13 @@ table tr:hover {
     white-space: normal;
     max-width: 60%;
 }
-
 .ticket-details-box p:last-child {
     border-bottom: none;
 }
-
 .status-open {
     color: green;
     font-weight: bold;
 }
-
 .status-closed {
     color: red;
     font-weight: bold;
@@ -173,7 +180,6 @@ table tr:hover {
     max-width: 400px;
     border-radius: 8px;
 }
-
 .form-group {
     margin-bottom: 20px;
 }
@@ -210,4 +216,64 @@ table tr:hover {
     font-weight: bold;
     margin-top: 10px;
 }
-    
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    gap: 8px;
+}
+.page-link {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #f0f0f0;
+    color: #333;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    text-align: center;
+    min-width: 32px;
+    user-select: none;
+}
+.page-link:hover {
+    background: #ddd;
+}
+
+.page-link.active {
+    background: #007bff;
+    color: #fff;
+    font-weight: bold;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+}
+.page-link:active {
+    transform: scale(0.95);
+}
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+table th, table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+table th {
+    background-color: #4CAF50;
+    color: white;
+}
+table tr:first-child th:first-child {
+    border-top-left-radius: 12px;
+}
+table tr:first-child th:last-child {
+    border-top-right-radius: 12px;
+}
+table tr:last-child td:first-child {
+    border-bottom-left-radius: 12px;
+}
+table tr:last-child td:last-child {
+    border-bottom-right-radius: 12px;
+}
