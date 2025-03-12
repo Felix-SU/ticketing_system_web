@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 $admin_id = $_SESSION['user_id']; // ID текущего админа
 $status = $_GET['status'] ?? 'open'; // По умолчанию открытые тикеты
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$tickets_per_page = 20;
+$tickets_per_page = 10;
 $offset = ($page - 1) * $tickets_per_page;
 // Определяем поле сортировки в зависимости от статуса
 $order_by = ($status === 'closed') ? 't.updated_at' : 't.created_at';

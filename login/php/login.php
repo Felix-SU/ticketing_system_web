@@ -12,13 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     try {
-        $sql = "SELECT * FROM users WHERE username = ?";
+        $sql = "SELECT id, username, password, role FROM users WHERE username = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$username]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
-            session_start();
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
@@ -28,7 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$token, $user['id']]);
 
-            setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), '/', '', true, true);
+            // Исправляем setcookie, чтобы работало на HTTP
+            setcookie('remember_token', $token, [
+                'expires' => time() + (30 * 24 * 60 * 60), // 30 дней
+                'path' => '/',
+                'secure' => false, // Отключаем secure, так как нет HTTPS
+                'httponly' => true,
+                'samesite' => 'Lax' // Меняем Strict на Lax, чтобы работало при редиректах
+            ]);
 
             $redirectUrl = ($user['role'] == 'admin' || $user['role'] == 'root') 
                 ? '../admin_dashboard/index.php' 
@@ -39,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo json_encode(['success' => false, 'message' => 'Неверный логин или пароль!']);
         }
     } catch (PDOException $e) {
-        echo json_encode(['success' => false, 'message' => 'Ошибка сервера!']);
+        error_log("Ошибка входа: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Ошибка базы данных. Попробуйте позже.']);
     }
 }
 ?>

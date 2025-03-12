@@ -1,63 +1,13 @@
 // script.js
 document.addEventListener("DOMContentLoaded", function () {
-   function renderPagination(totalPages, currentPage, status) {
-    if (totalPages <= 1) return "";
+$(document).on("change", "#open-page-select, #closed-page-select", function () {
+    const page = $(this).val(); // Получаем выбранную страницу
+    const status = $(this).attr("id") === "open-page-select" ? "open" : "closed";
 
-    let html = '<div class="pagination">';
-
-    // Первая страница
-    html += `<span class="page-link ${currentPage == 1 ? 'active' : ''}" data-page="1" data-status="${status}">1</span>`;
-
-    // Многоточие, если текущая страница далеко
-    if (totalPages > 5 && currentPage > 3) {
-        html += '<span class="page-link disabled">...</span>';
-    }
-
-    // Отображаем страницу перед текущей, текущую и следующую
-    let start = Math.max(2, Math.min(currentPage - 1, totalPages - 3));
-    let end = Math.min(totalPages - 1, Math.max(currentPage + 1, 4));
-
-    for (let i = start; i <= end; i++) {
-        html += `<span class="page-link ${i == currentPage ? 'active' : ''}" data-page="${i}" data-status="${status}">${i}</span>`;
-    }
-
-    // Многоточие, если текущая страница далеко от последней
-    if (totalPages > 5 && currentPage < totalPages - 2) {
-        html += '<span class="page-link disabled">...</span>';
-    }
-
-    // Последняя страница
-    if (totalPages > 1) {
-        html += `<span class="page-link ${currentPage == totalPages ? 'active' : ''}" data-page="${totalPages}" data-status="${status}">${totalPages}</span>`;
-    }
-
-    html += '</div>';
-    return html;
-}
-// Функция обновления активной страницы
-function highlightActivePage() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const openPage = Number(urlParams.get("open_page")) || 1;
-    const closedPage = Number(urlParams.get("closed_page")) || 1;
-    $(".page-link").each(function () {
-        const page = Number($(this).data("page"));
-        const status = $(this).data("status") || "open";
-        if ((status === "open" && page === openPage) || (status === "closed" && page === closedPage)) {
-            $(this).addClass("active");
-        } else {
-            $(this).removeClass("active");
-        }
-    });
-}
-// Вызов при загрузке страницы
-highlightActivePage();
-// Обработчик клика по страницам
-$(document).on("click", ".page-link", function (e) {
-    e.preventDefault();
-    if ($(this).hasClass("disabled")) return; // Игнорируем многоточие
-    const page = $(this).data("page");
-    const status = $(this).data("status") || "open";
-    // Определяем нужную таблицу
+    loadTickets1(page, status);
+  
+});
+function loadTickets1(page, status) {
     const tableSelector = status === "open" ? "#open-tickets tbody" : "#closed-tickets tbody";
     $(tableSelector).fadeOut(200, function () {
         $(this).empty();
@@ -67,48 +17,49 @@ $(document).on("click", ".page-link", function (e) {
             type: "GET",
             data: { page: page, status: status },
             dataType: "json",
-            success: function (tickets) {
-                if (Array.isArray(tickets)) {
+            success: function (response) {
+                if (Array.isArray(response)) {
+                    response = { tickets: response, totalPages: 1 }; // Фикс, если API возвращает массив
+                }
+                if (response && Array.isArray(response.tickets)) {
                     let newRows = "";
-                    tickets.forEach(ticket => {
+                    response.tickets.forEach(ticket => {
                         newRows += `
-                            <tr id="ticket-${ticket.id}">
-                                <td>${ticket.id}</td>
-                                <td>${ticket.title.length > 15 ? ticket.title.substring(0, 15) + '...' : ticket.title}</td>
-                                <td>${ticket.description.length > 10 ? ticket.description.substring(0, 10) + '...' : ticket.description}</td>
-                              <td>${ticket.admin_position ? (ticket.admin_position.length > 10 ? ticket.admin_position.substring(0, 10) + '...' : ticket.admin_position) : '—'}</td>
+                        <tr id="ticket-${ticket.id}">
+                            <td>${ticket.id}</td>
+                            <td>${ticket.title.length > 15 ? ticket.title.substring(0, 15) + '...' : ticket.title}</td>
+                            <td>${ticket.description.length > 10 ? ticket.description.substring(0, 10) + '...' : ticket.description}</td>
+                          <td>${ticket.admin_position ? (ticket.admin_position.length > 10 ? ticket.admin_position.substring(0, 10) + '...' : ticket.admin_position) : '—'}</td>
 
-                                <td>${ticket.created_at}</td>
-                                ${status === "closed" ? `<td>${ticket.updated_at || '—'}</td>` : ""}
-                                <td class="ticket-status ${ticket.status === 'open' ? 'status-open' : 'status-closed'}">${ticket.status}</td>
-                                <td><button class="toggle-details-btn" onclick="toggleDetails(${ticket.id})">Показать детали</button></td>
-                            </tr>
-                            <tr id="details-${ticket.id}" class="ticket-details" style="display: none;">
-                                <td colspan="${ticket.status === "closed" ? 9 : 8}">
-                                    <div class="ticket-details-box">
-                                        <p><strong>ID:</strong> ${ticket.id}</p>
-                                        <p><strong>Заголовок:</strong> ${ticket.title}</p>
-                                        <p><strong>Описание:</strong> ${ticket.description}</p>
-                                        <p><strong>Имя получателя:</strong> ${ticket.admin_position || "—"}</p>
-                                        <p><strong>Дата создания:</strong> ${ticket.created_at}</p>
-                                        ${ticket.status === "closed" ? `<p><strong>Дата закрытия:</strong> ${ticket.updated_at || "—"}</p>` : ""}
-                                        <p><strong>Статус:</strong> <span class="${ticket.status === "open" ? "status-open" : "status-closed"}">${ticket.status}</span></p>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
+                            <td>${ticket.created_at}</td>
+                            ${status === "closed" ? `<td>${ticket.updated_at || '—'}</td>` : ""}
+                            <td class="ticket-status ${ticket.status === 'open' ? 'status-open' : 'status-closed'}">${ticket.status}</td>
+                            <td><button class="toggle-details-btn" onclick="toggleDetails(${ticket.id})">Показать детали</button></td>
+                        </tr>
+                        <tr id="details-${ticket.id}" class="ticket-details" style="display: none;">
+                            <td colspan="${ticket.status === "closed" ? 9 : 8}">
+                                <div class="ticket-details-box">
+                                    <p><strong>ID:</strong> ${ticket.id}</p>
+                                    <p><strong>Заголовок:</strong> ${ticket.title}</p>
+                                    <p><strong>Описание:</strong> ${ticket.description}</p>
+                                    <p><strong>Имя получателя:</strong> ${ticket.admin_position || "—"}</p>
+                                    <p><strong>Дата создания:</strong> ${ticket.created_at}</p>
+                                    ${ticket.status === "closed" ? `<p><strong>Дата закрытия:</strong> ${ticket.updated_at || "—"}</p>` : ""}
+                                    <p><strong>Статус:</strong> <span class="${ticket.status === "open" ? "status-open" : "status-closed"}">${ticket.status}</span></p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
                     $(tableSelector).html(newRows).fadeIn(300);
-                    // Обновляем пагинацию
-                    const paginationHtml = renderPagination(20, page, status); // Тут укажи реальное totalPages
-                    $(`.pagination[data-status="${status}"]`).html(paginationHtml);
-                    // Обновляем URL без перезагрузки страницы
+                    // ✅ Обновляем URL без перезагрузки страницы
                     const newUrl = new URL(window.location);
                     newUrl.searchParams.set(status + "_page", page);
                     window.history.pushState({}, "", newUrl);
-                    highlightActivePage();
+                    // ✅ Выделяем текущую страницу
+                  
                 } else {
-                    console.error("❌ Ошибка: некорректный формат данных", tickets);
+                    console.error("❌ Ошибка: некорректный формат данных", response);
                 }
             },
             error: function () {
@@ -116,7 +67,7 @@ $(document).on("click", ".page-link", function (e) {
             }
         });
     });
-});
+}
     $(document).ready(function () {
         $("#ticketForm").submit(function (e) {
             e.preventDefault(); // Отключаем стандартную отправку формы

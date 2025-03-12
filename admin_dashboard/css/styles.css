@@ -167,7 +167,7 @@ table tr:hover {
     font-weight: bold;
 }
 .tab-content {
-            max-height: 65vh; /* Ограничиваем высоту до 60% от экрана */
+            max-height: 76vh; /* Ограничиваем высоту до 60% от экрана */
             overflow-y: auto; /* Включаем вертикальный скролл при переполнении */
             border: 1px solid #ddd; /* Опционально, для наглядности */
             padding: 10px;
@@ -220,7 +220,7 @@ table tr:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 20px;
+    margin-top: 15px;
     gap: 8px;
 }
 .page-link {
@@ -276,4 +276,24 @@ table tr:last-child td:first-child {
 }
 table tr:last-child td:last-child {
     border-bottom-right-radius: 12px;
+}
+select {
+    width: auto;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+select:hover {
+    border-color: #007bff;
+}
+
+select:focus {
+    outline: none;
+    border-color: #0056b3;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }

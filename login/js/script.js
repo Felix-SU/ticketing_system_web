@@ -1,24 +1,30 @@
 document.addEventListener("DOMContentLoaded", function () {
     const passwordInput = document.getElementById("password");
     const loginInput = document.getElementById("username");
+
     if (loginInput) {
+        let isCapsLockOn = false;
+    
+        loginInput.addEventListener("keydown", function (event) {
+            // Проверяем состояние Caps Lock при каждом нажатии клавиши
+            isCapsLockOn = event.getModifierState && event.getModifierState("CapsLock");
+        });
+    
+        loginInput.addEventListener("keyup", function (event) {
+            // Обновляем состояние при отпускании клавиши (если вдруг Caps Lock поменялся)
+            isCapsLockOn = event.getModifierState && event.getModifierState("CapsLock");
+        });
+    
         loginInput.addEventListener("input", function () {
             let newValue = this.value.replace(/[^a-z0-9]/gi, "").toLowerCase();
-            
-            if (this.value !== newValue) {
-                this.value = newValue;
-                showErrorMessage("Логин только латиница и цифры!");
-            }
-        });
-        loginInput.addEventListener("keydown", function () {
-            let newValue = this.value.replace(/[^a-z0-9]/gi, "").toLowerCase();
-            
-            if (this.value !== newValue) {
+    
+            if (this.value !== newValue && !isCapsLockOn) {
                 this.value = newValue;
                 showErrorMessage("Логин только латиница и цифры!");
             }
         });
     }
+    
  if (passwordInput) {
     passwordInput.addEventListener("input", function () {
         let newValue = this.value.replace(/[^a-z0-9!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/]/gi, "");

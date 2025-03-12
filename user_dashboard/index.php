@@ -1,12 +1,46 @@
+
 <?php
 session_start();
-// Проверка, что пользователь авторизован
+include '../db.php';  // Подключаем базу данных
+// Если сессии нет, проверяем remember_token
+if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token'])) {
+    $rememberToken = $_COOKIE['remember_token'];
+
+    // Проверяем токен в базе
+    $sql = "SELECT id, username, role FROM users WHERE remember_token = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$rememberToken]);
+    $user = $stmt->fetch();
+
+    if ($user) {
+        // Если токен найден — создаём сессию
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+    }
+}
+// Если после проверки всё ещё нет сессии — редирект на логин
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login/index.php');
     exit;
 }
-include '../db.php';  // Подключаем базу данных
-// Получаем тикеты пользователя
+// Получаем текущий URL
+$currentPage = basename($_SERVER['PHP_SELF']);
+// Перенаправление на нужную страницу, но **не зацикливаем редирект**
+if ($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'root') {
+    if ($currentPage !== 'admin_dashboard.php') {
+        header('Location: ../admin_dashboard/index.php');
+        exit;
+    }
+} elseif ($_SESSION['role'] == 'user') {
+    if ($currentPage !== 'index.php') {  // Это `user_dashboard/index.php`
+        header('Location: ../user_dashboard/index.php');
+        exit;
+    }
+} else {
+    header('Location: ../login/index.php');
+    exit;
+}
 $user_id = $_SESSION['user_id'];
 // Определяем количество открытых тикетов
 $sql_count_open = "SELECT COUNT(*) FROM tickets WHERE user_id = ? AND status = 'open'";
@@ -19,12 +53,12 @@ $stmt_count_closed = $pdo->prepare($sql_count_closed);
 $stmt_count_closed->execute([$user_id]);
 $total_closed_tickets = $stmt_count_closed->fetchColumn();
 // Пагинация для открытых тикетов
-$open_tickets_per_page = 20;
+$open_tickets_per_page = 9;
 $open_total_pages = ceil($total_open_tickets / $open_tickets_per_page);
 $open_page = isset($_GET['open_page']) ? (int)$_GET['open_page'] : 1;
 $open_offset = ($open_page - 1) * $open_tickets_per_page;
 // Пагинация для закрытых тикетов
-$closed_tickets_per_page = 20;
+$closed_tickets_per_page = 9;
 $closed_total_pages = ceil($total_closed_tickets / $closed_tickets_per_page);
 $closed_page = isset($_GET['closed_page']) ? (int)$_GET['closed_page'] : 1;
 $closed_offset = ($closed_page - 1) * $closed_tickets_per_page;
@@ -168,9 +202,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </table>
     <?php if (isset($open_total_pages) && $open_total_pages > 1): ?>
     <div class="pagination">
-    <?php for ($i = 1; $i <= $open_total_pages; $i++): ?>
-            <span class="page-link <?= $i == $open_page ? 'active' : '' ?>" data-page="<?= $i ?>"><?= $i ?></span>
-        <?php endfor; ?>
+        <select id="open-page-select" class="pages"data-status="open">
+            <?php for ($i = 1; $i <= $open_total_pages; $i++): ?>
+                <option value="<?= $i ?>" <?= $i == $open_page ? 'selected' : '' ?>>Страница <?= $i ?></option>
+            <?php endfor; ?>
+        </select>
     </div>
 <?php endif; ?>
 </div>
@@ -223,13 +259,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </table>
     <?php if (isset($closed_total_pages) && $closed_total_pages > 1): ?>
     <div class="pagination">
-        <?php for ($i = 1; $i <= $closed_total_pages; $i++): ?>
-            <span class="page-link <?= $i == $closed_page ? 'active' : '' ?>" 
-                data-page="<?= $i ?>" 
-                data-status="closed">
-                <?= $i ?>
-            </span>
-        <?php endfor; ?>
+        <select id="closed-page-select" class="pages" data-status="closed">
+            <?php for ($i = 1; $i <= $closed_total_pages; $i++): ?>
+                <option value="<?= $i ?>" <?= $i == $closed_page ? 'selected' : '' ?>>Страница <?= $i ?></option>
+            <?php endfor; ?>
+        </select>
     </div>
 <?php endif; ?>
 </div>
